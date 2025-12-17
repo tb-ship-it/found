@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Found Capital — Deck Evaluator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Clash+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: #111111;
+            --accent-green: #00ff88;
+            --accent-red: #ff0055;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --border: #222222;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            margin-bottom: 60px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 30px;
+        }
+
+        .logo {
+            font-family: 'Clash Display', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+
+        .logo span {
+            color: var(--accent-green);
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 40px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: var(--bg-card);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            font-size: 12px;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .btn {
+            background: var(--accent-green);
+            color: var(--bg-dark);
+            border: none;
+            padding: 14px 32px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent-green);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .score-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .score-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--accent-green) 0deg,
+                var(--accent-green) calc(var(--score) * 3.6deg),
+                var(--border) calc(var(--score) * 3.6deg),
+                var(--border) 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .score-circle::before {
+            content: '';
+            width: 140px;
+            height: 140px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .score-value {
+            font-family: 'Clash Display', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .verdict {
+            font-family: 'Clash Display', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .verdict.strong-back { color: var(--accent-green); }
+        .verdict.back { color: #88ff00; }
+        .verdict.maybe { color: #ffaa00; }
+        .verdict.pass { color: var(--accent-red); }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .category-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .category-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .category-score {
+            font-family: 'Clash Display', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .subcategory {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .subcategory:first-of-type {
+            border-top: none;
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .list-item {
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .list-item:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .list-item::before {
+            content: '→';
+            color: var(--accent-green);
+            margin-right: 12px;
+            font-weight: 700;
+        }
+
+        .concern::before {
+            content: '⚠';
+            color: #ffaa00;
+        }
+
+        .deal-breaker::before {
+            content: '✕';
+            color: var(--accent-red);
+        }
+
+        .thesis {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            font-size: 15px;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .comparables {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .comparable-tag {
+            background: var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            margin-top: 30px;
+        }
+
+        .reset-btn:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            box-shadow: none;
+        }
+
+        .error {
+            background: rgba(255, 0, 85, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: var(--accent-red);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">FOUND <span>CAPITAL</span></div>
+            <div class="tagline">AI-Powered Pitch Deck Evaluator</div>
+        </div>
+
+        <div id="upload-section">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="batch-mode" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
+                    <span style="font-size: 14px; color: var(--text-secondary);">Batch Mode (multiple decks, auto-filter score &lt;60)</span>
+                </label>
+            </div>
+
+            <div id="upload-zone" class="upload-zone">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text" id="upload-text">
+                    Drop pitch deck here or click to browse
+                </div>
+                <div class="upload-subtext">PDF format only</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" id="evaluate-btn" style="display: none;">
+                    Evaluate Deck
+                </button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <div style="color: var(--text-secondary);">
+                Analyzing pitch deck against investment thesis...
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" style="display: none;"></div>
+    </div>
+
+    <input type="file" id="file-input" accept="application/pdf" style="display: none;">
+
+    <script>
+        let selectedFile = null;
+        let selectedFiles = [];
+
+        const uploadZone = document.getElementById('upload-zone');
+        const uploadText = document.getElementById('upload-text');
+        const fileInput = document.getElementById('file-input');
+        const evaluateBtn = document.getElementById('evaluate-btn');
+        const uploadSection = document.getElementById('upload-section');
+        const loadingSection = document.getElementById('loading');
+        const errorSection = document.getElementById('error');
+        const resultsSection = document.getElementById('results');
+        const batchModeCheckbox = document.getElementById('batch-mode');
+
+        // Toggle between single and multiple file mode
+        batchModeCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                fileInput.setAttribute('multiple', 'multiple');
+                uploadText.textContent = 'Drop multiple pitch decks here or click to browse';
+                selectedFiles = [];
+                selectedFile = null;
+            } else {
+                fileInput.removeAttribute('multiple');
+                uploadText.textContent = 'Drop pitch deck here or click to browse';
+                selectedFile = null;
+                selectedFiles = [];
+            }
+            evaluateBtn.style.display = 'none';
+        });
+
+        // Click to browse
+        uploadZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File selected via browse
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                if (batchModeCheckbox.checked) {
+                    handleMultipleFiles(Array.from(e.target.files));
+                } else {
+                    handleFile(e.target.files[0]);
+                }
+            }
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0) {
+                if (batchModeCheckbox.checked) {
+                    handleMultipleFiles(files);
+                } else {
+                    handleFile(files[0]);
+                }
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.pdf')) {
+                showError('Please select a PDF file');
+                return;
+            }
+            selectedFile = file;
+            uploadText.textContent = file.name;
+            evaluateBtn.style.display = 'inline-block';
+        }
+
+        function handleMultipleFiles(files) {
+            const pdfFiles = files.filter(f => f.name.endsWith('.pdf'));
+            if (pdfFiles.length === 0) {
+                showError('Please select PDF files');
+                return;
+            }
+            selectedFiles = pdfFiles;
+            uploadText.textContent = `${pdfFiles.length} decks selected`;
+            evaluateBtn.style.display = 'inline-block';
+        }
+
+        evaluateBtn.addEventListener('click', () => {
+            if (batchModeCheckbox.checked) {
+                evaluateBatch();
+            } else {
+                evaluateDeck();
+            }
+        });
+
+        async function evaluateDeck() {
+            if (!selectedFile) return;
+
+            uploadSection.style.display = 'none';
+            loadingSection.style.display = 'block';
+            errorSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/evaluate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Evaluation failed');
+                }
+
+                displayResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingSection.style.display = 'none';
+            }
+        }
+
+        async function evaluateBatch() {
+            if (selectedFiles.length === 0) return;
+
+            uploadSection.style.display = 'none';
+            loadingSection.style.display = 'block';
+            errorSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            formData.append('threshold', '60');
+
+            try {
+                const response = await fetch('/evaluate-batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Batch evaluation failed');
+                }
+
+                displayBatchResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingSection.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            errorSection.textContent = message;
+            errorSection.style.display = 'block';
+            uploadSection.style.display = 'block';
+            loadingSection.style.display = 'none';
+        }
+
+        function displayBatchResults(batchData) {
+            const passedDecks = batchData.results.filter(r => !r.dismissed && r.evaluation);
+            
+            let html = `
+                <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 30px; margin-bottom: 30px;">
+                    <div style="font-family: 'Clash Display', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 20px;">
+                        Batch Evaluation Results
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Total Uploaded</div>
+                            <div style="font-size: 32px; font-weight: 700;">${batchData.total}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Evaluated</div>
+                            <div style="font-size: 32px; font-weight: 700;">${batchData.evaluated}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--accent-green); text-transform: uppercase;">Passed (≥60)</div>
+                            <div style="font-size: 32px; font-weight: 700; color: var(--accent-green);">${batchData.passed}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: var(--accent-red); text-transform: uppercase;">Dismissed (&lt;60)</div>
+                            <div style="font-size: 32px; font-weight: 700; color: var(--accent-red);">${batchData.dismissed}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (passedDecks.length > 0) {
+                html += `<div style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: var(--accent-green);">
+                    ✓ Qualified Decks (Score ≥ 60)
+                </div>`;
+
+                passedDecks.forEach((result, idx) => {
+                    const evaluation = result.evaluation;
+                    const verdictClass = evaluation.verdict.includes('STRONG') ? 'strong-back' :
+                                        evaluation.verdict === 'BACK' ? 'back' :
+                                        evaluation.verdict === 'MAYBE' ? 'maybe' : 'pass';
+                    
+                    html += `
+                        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 30px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <div>
+                                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">${result.filename}</div>
+                                    <div class="verdict ${verdictClass}" style="font-size: 24px;">${evaluation.verdict}</div>
+                                </div>
+                                <div class="score-circle" style="--score: ${evaluation.overall_score}; width: 120px; height: 120px;">
+                                    <div class="score-value" style="font-size: 32px;">${evaluation.overall_score}</div>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                                <div>
+                                    <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Founders</div>
+                                    <div style="font-size: 24px; font-weight: 700;">${evaluation.category_scores.founders}/40</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Finance</div>
+                                    <div style="font-size: 24px; font-weight: 700;">${evaluation.category_scores.finance}/30</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Fit</div>
+                                    <div style="font-size: 24px; font-weight: 700;">${evaluation.category_scores.fit}/30</div>
+                                </div>
+                            </div>
+                            ${evaluation.investment_thesis ? `<div style="padding: 15px; background: rgba(0, 255, 136, 0.05); border-left: 3px solid var(--accent-green); border-radius: 6px; font-size: 14px; line-height: 1.6;">${evaluation.investment_thesis}</div>` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            const dismissedDecks = batchData.results.filter(r => r.dismissed);
+            if (dismissedDecks.length > 0) {
+                html += `
+                    <div style="margin-top: 40px;">
+                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: var(--accent-red);">
+                            ✕ Dismissed Decks (Score &lt; 60)
+                        </div>
+                        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+                `;
+                
+                dismissedDecks.forEach(result => {
+                    const score = result.evaluation ? result.evaluation.overall_score : 'N/A';
+                    const reason = result.error || result.reason || 'Below threshold';
+                    html += `
+                        <div style="display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border); font-size: 14px;">
+                            <span>${result.filename}</span>
+                            <span style="color: var(--text-secondary);">${reason}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+
+            html += `
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn reset-btn" onclick="reset()">Evaluate More Decks</button>
+                </div>
+            `;
+
+            resultsSection.innerHTML = html;
+            resultsSection.style.display = 'block';
+        }
+
+        function displayResults(evaluation) {
+            const verdictClass = evaluation.verdict.includes('STRONG') ? 'strong-back' :
+                                evaluation.verdict === 'BACK' ? 'back' :
+                                evaluation.verdict === 'MAYBE' ? 'maybe' : 'pass';
+
+            let html = `
+                <div class="score-header">
+                    <div class="score-circle" style="--score: ${evaluation.overall_score}">
+                        <div class="score-value">${evaluation.overall_score}</div>
+                    </div>
+                    <div>
+                        <div class="verdict ${verdictClass}">${evaluation.verdict}</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${selectedFile.name}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="category-grid">
+                    ${renderCategory('Founders', evaluation.category_scores.founders, 40, evaluation.founders_breakdown)}
+                    ${renderCategory('Finance', evaluation.category_scores.finance, 30, evaluation.finance_breakdown)}
+                    ${renderCategory('Fit', evaluation.category_scores.fit, 30, evaluation.fit_breakdown)}
+                </div>
+
+                ${evaluation.investment_thesis ? `<div class="thesis">${evaluation.investment_thesis}</div>` : ''}
+                ${renderSection('✓ Strengths', evaluation.strengths)}
+                ${renderSection('⚠ Concerns', evaluation.concerns, 'concern')}
+                ${renderSection('✕ Deal Breakers', evaluation.deal_breakers, 'deal-breaker')}
+                ${renderSection('Questions for Founders', evaluation.key_questions)}
+                ${renderComparables(evaluation.comparable_companies)}
+
+                <div style="text-align: center;">
+                    <button class="btn reset-btn" onclick="reset()">Evaluate Another Deck</button>
+                </div>
+            `;
+
+            resultsSection.innerHTML = html;
+            resultsSection.style.display = 'block';
+        }
+
+        function renderCategory(title, score, max, breakdown) {
+            let subItems = '';
+            if (breakdown) {
+                const items = {
+                    'Founders': [
+                        ['Commercial Energy', breakdown.commercial_energy, 12],
+                        ['Industry Experience', breakdown.industry_experience, 12],
+                        ['Execution Capacity', breakdown.execution_capacity, 12],
+                        ['Previous Exit', breakdown.previous_exit, 4]
+                    ],
+                    'Finance': [
+                        ['Business Metrics', breakdown.business_metrics, 20],
+                        ['Round Metrics', breakdown.round_metrics, 10]
+                    ],
+                    'Fit': [
+                        ['Scalable Opportunity', breakdown.scalable_opportunity, 8],
+                        ['Market Fit', breakdown.market_fit, 8],
+                        ['Mission Ambition', breakdown.mission_ambition, 7],
+                        ['Moatability', breakdown.moatability, 7]
+                    ]
+                };
+
+                if (items[title]) {
+                    subItems = items[title].map(([name, val, mx]) => 
+                        `<div class="subcategory"><span>${name}</span><span>${val}/${mx}</span></div>`
+                    ).join('');
+                }
+            }
+
+            return `
+                <div class="category-card">
+                    <div class="category-title">${title}</div>
+                    <div class="category-score">${score}/${max}</div>
+                    ${subItems}
+                </div>
+            `;
+        }
+
+        function renderSection(title, items, className = '') {
+            if (!items || items.length === 0) return '';
+            return `
+                <div class="section">
+                    <div class="section-title">${title}</div>
+                    ${items.map(item => `<div class="list-item ${className}">${item}</div>`).join('')}
+                </div>
+            `;
+        }
+
+        function renderComparables(companies) {
+            if (!companies || companies.length === 0) return '';
+            return `
+                <div class="section">
+                    <div class="section-title">Comparable Companies</div>
+                    <div class="comparables">
+                        ${companies.map(c => `<div class="comparable-tag">${c}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function reset() {
+            selectedFile = null;
+            selectedFiles = [];
+            uploadText.textContent = batchModeCheckbox.checked ? 
+                'Drop multiple pitch decks here or click to browse' : 
+                'Drop pitch deck here or click to browse';
+            evaluateBtn.style.display = 'none';
+            uploadSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            fileInput.value = '';
+        }
+    </script>
+</body>
+</html>
