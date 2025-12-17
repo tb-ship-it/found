@@ -15,7 +15,7 @@ import tempfile
 app = Flask(__name__)
 
 # Your API key baked in
-API_KEY = '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'
+API_KEY = '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'
 
 INVESTMENT_THESIS = """
 You are evaluating startup pitch decks for Found Capital angel investment syndicate. 
